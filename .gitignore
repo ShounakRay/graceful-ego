@@ -1,3 +1,19 @@
+# Added by Shounak
+
+# Python cache
+**__pycache__**
+# Metadrive empty repo/wrapper
+trafficgen/metadrive_emptied
+# Waymo dataset (where original files + program output PKLS are stored)
+trafficgen/waymo_dataset_v110
+# VSCode settings
+.vscode/settings.json
+# Metadrive repo
+trafficgen/metadrive/*
+# Cache?
+trafficgen.egg-info/
+
+# Provided by forked repo
 *.pyc
 .idea
 

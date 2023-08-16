@@ -6,7 +6,9 @@ device: 'cpu'
 
 use_cache: False
 debug: True
-data_path: 'init/sample_data'
+# data_path: 'init/sample_data'
+# The following data-path is WRT the `trafficgen` directory. This should be `PATH_B` as referred to in the main README.
+data_path: waymo_dataset_v110/processed
 sample_gap: 20
 
 max_epoch: 50

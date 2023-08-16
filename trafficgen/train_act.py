@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 import torch
 import torch.utils.data as data
+
 # General config
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
@@ -11,24 +12,30 @@ from trafficgen.utils.config import get_parsed_args
 from trafficgen.utils.config import load_config_act
 from trafficgen.utils.typedef import AgentType, RoadEdgeType, RoadLineType
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     args = get_parsed_args()
     cfg = load_config_act(args.config)
 
-    if cfg['debug']:
+    print(f"Using # workers: {cfg['num_workers']}")
+
+    if cfg["debug"]:
         # wandb_logger = WandbLogger(project="trafficGen_ptl", name=args.exp_name)
-        trainer = pl.Trainer(devices=1, gradient_clip_val=0.5, accelerator=cfg['device'], profiler="simple")
+        trainer = pl.Trainer(
+            devices=1,
+            gradient_clip_val=0.5,
+            accelerator=cfg["device"],
+            profiler="simple",
+        )
     else:
         wandb_logger = WandbLogger(project="trafficGen_ptl", name=args.exp_name)
         trainer = pl.Trainer(
-            max_epochs=cfg['max_epoch'],
+            max_epochs=cfg["max_epoch"],
             logger=wandb_logger,
             devices=args.devices,
             gradient_clip_val=0.5,
-            accelerator=cfg['device'],
+            accelerator=cfg["device"],
             profiler="simple",
-            strategy=cfg['strategy'],
+            strategy=cfg["strategy"],
         )
 
     train_set = actDataset(cfg)
@@ -39,14 +46,24 @@ if __name__ == '__main__':
 
     # split the train set into two
     seed = torch.Generator().manual_seed(42)
-    train_set, val_set = data.random_split(train_set, [train_set_size, valid_set_size], generator=seed)
+    train_set, val_set = data.random_split(
+        train_set, [train_set_size, valid_set_size], generator=seed
+    )
 
     train_loader = DataLoader(
-        train_set, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'], shuffle=True, drop_last=False
+        train_set,
+        batch_size=cfg["batch_size"],
+        num_workers=cfg["num_workers"],
+        shuffle=True,
+        drop_last=False,
     )
 
     val_loader = DataLoader(
-        val_set, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'], shuffle=False, drop_last=False
+        val_set,
+        batch_size=cfg["batch_size"],
+        num_workers=cfg["num_workers"],
+        shuffle=False,
+        drop_last=False,
     )
 
     model = actuator(cfg)

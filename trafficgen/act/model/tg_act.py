@@ -14,18 +14,18 @@ version = 0
 
 
 def act_loss(pred, gt):
-    MSE = torch.nn.MSELoss(reduction='none')
-    L1 = torch.nn.L1Loss(reduction='none')
+    MSE = torch.nn.MSELoss(reduction="none")
+    L1 = torch.nn.L1Loss(reduction="none")
     CLS = torch.nn.CrossEntropyLoss()
 
-    prob_pred = pred['prob']
-    velo_pred = pred['velo']
-    pos_pred = pred['pos']
-    heading_pred = pred['heading']
+    prob_pred = pred["prob"]
+    velo_pred = pred["velo"]
+    pos_pred = pred["pos"]
+    heading_pred = pred["heading"]
 
-    pos_gt = gt['gt_pos'].unsqueeze(1).repeat(1, 6, 1, 1)
-    velo_gt = gt['gt_vel'].unsqueeze(1).repeat(1, 6, 1, 1)
-    heading_gt = gt['gt_heading'].unsqueeze(1).repeat(1, 6, 1)
+    pos_gt = gt["gt_pos"].unsqueeze(1).repeat(1, 6, 1, 1)
+    velo_gt = gt["gt_vel"].unsqueeze(1).repeat(1, 6, 1, 1)
+    heading_gt = gt["gt_heading"].unsqueeze(1).repeat(1, 6, 1)
 
     pred_end = pos_pred[:, :, -1]
     gt_end = pos_gt[:, :, -1]
@@ -43,21 +43,24 @@ def act_loss(pred, gt):
     velo_loss = torch.gather(velo_loss, dim=1, index=min_index.unsqueeze(-1)).mean()
 
     heading_loss = L1(heading_gt, heading_pred).mean(-1)
-    heading_loss = torch.gather(heading_loss, dim=1, index=min_index.unsqueeze(-1)).mean()
+    heading_loss = torch.gather(
+        heading_loss, dim=1, index=min_index.unsqueeze(-1)
+    ).mean()
 
     loss_sum = pos_loss + velo_loss + heading_loss + cls_loss
 
     loss_dict = {}
-    loss_dict['cls_loss'] = cls_loss
-    loss_dict['velo_loss'] = velo_loss
-    loss_dict['heading_loss'] = heading_loss
-    loss_dict['fde'] = fde
-    loss_dict['pos_loss'] = pos_loss
+    loss_dict["cls_loss"] = cls_loss
+    loss_dict["velo_loss"] = velo_loss
+    loss_dict["heading_loss"] = heading_loss
+    loss_dict["fde"] = fde
+    loss_dict["pos_loss"] = pos_loss
     return loss_sum, loss_dict
 
 
 class actuator(pl.LightningModule):
-    """ A transformer model with wider latent space """
+    """A transformer model with wider latent space"""
+
     def __init__(self, cfg=None):
         super().__init__()
         self.save_hyperparameters()
@@ -102,29 +105,35 @@ class actuator(pl.LightningModule):
         loss, loss_dict = act_loss(pred, batch)
         # pred['prob'] = nn.Sigmoid()(pred['prob'])
 
-        loss_dict = {'train/'+k:v for k,v in loss.items()}
+        # NOTE: [SR] Changed from `loss.items()` to `loss_dict.items()`
+        loss_dict = {"train/" + k: v for k, v in loss_dict.items()}
         self.log_dict(loss_dict)
         return loss
 
     def validation_step(self, batch, batch_idx):
         pred = self.forward(batch)
         loss, loss_dict = act_loss(pred, batch)
-        loss_dict = {'val/' + k: v for k, v in loss.items()}
+
+        # NOTE: [SR] Changed from `loss.items()` to `loss_dict.items()`
+        loss_dict = {"val/" + k: v for k, v in loss_dict.items()}
         self.log_dict(loss_dict)
         return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=3e-4)
-        scheduler = MultiStepLR(optimizer, milestones=[50, 100], gamma=0.2, verbose=True)
+        scheduler = MultiStepLR(
+            optimizer, milestones=[50, 100], gamma=0.2, verbose=True
+        )
         return [optimizer], [scheduler]
 
     def forward(self, data):
+        agent = data["agent"]
+        agent_mask = data["agent_mask"]
 
-        agent = data['agent']
-        agent_mask = data['agent_mask']
-
-        all_vec = torch.cat([data['center'], data['cross'], data['bound']], dim=-2)
-        line_mask = torch.cat([data['center_mask'], data['cross_mask'], data['bound_mask']], dim=1)
+        all_vec = torch.cat([data["center"], data["cross"], data["bound"]], dim=-2)
+        line_mask = torch.cat(
+            [data["center_mask"], data["cross_mask"], data["bound_mask"]], dim=1
+        )
 
         polyline = all_vec[..., :4]
         polyline_type = all_vec[..., 4].to(int)
@@ -133,7 +142,9 @@ class actuator(pl.LightningModule):
         polyline_traf_embed = self.traf_embedding(polyline_traf)
 
         agent_enc = self.agent_encode(agent)
-        line_enc = self.line_encode(polyline) + polyline_traf_embed + polyline_type_embed
+        line_enc = (
+            self.line_encode(polyline) + polyline_traf_embed + polyline_type_embed
+        )
         b, a, d = agent_enc.shape
 
         device = agent_enc.device
@@ -156,9 +167,9 @@ class actuator(pl.LightningModule):
         heading_pred = self.angle_head(pred_embed).view(b, 6, self.pred_len).cumsum(-1)
 
         pred = {}
-        pred['prob'] = prob_pred
-        pred['velo'] = velo_pred
-        pred['pos'] = pos_pred
-        pred['heading'] = heading_pred
+        pred["prob"] = prob_pred
+        pred["velo"] = velo_pred
+        pred["pos"] = pos_pred
+        pred["heading"] = heading_pred
 
         return pred
