@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# @Author: Shounak Ray
+# @Date:   2023-08-14 15:07:03
+# @Last Modified by:   Shounak Ray
+# @Last Modified time: 2023-08-14 16:22:39
 import copy
 import os
 import pickle
@@ -23,12 +28,15 @@ TRAFFICGEN_ROOT = os.path.dirname(os.path.dirname(__file__))
 class TrafficGen:
     def __init__(self, cfg):
         self.cfg = cfg
+        # `load_from_checkpoint` is derived from `LightningModule` module in `initializer` (not explicitly defined in `initializer`)
         self.init_model = initializer.load_from_checkpoint(os.path.join(TRAFFICGEN_ROOT, "traffic_generator", "ckpt", "init.ckpt"))
+        
         # act = actuator()
         # state = torch.load('traffic_generator/ckpt/act.ckpt', map_location='cpu')
         # act = torch.nn.DataParallel(act, device_ids=[0])
         # act.load_state_dict(state["state_dict"])
         # self.act_model = act
+        
         self.act_model = actuator.load_from_checkpoint(os.path.join(TRAFFICGEN_ROOT, "traffic_generator", "ckpt", "act.ckpt"))
         init_dataset = InitDataset(cfg)
         self.data_loader = DataLoader(init_dataset, shuffle=False, batch_size=1, num_workers=0)
@@ -47,6 +55,8 @@ class TrafficGen:
 
     def generate_scenarios(self, gif=True, save_metadrive=False):
         print('Initializing traffic scenarios...')
+        # This is the vehicle initialization step according to the checkpoint provided in the definition on `self.init_model`
+        #   in the constructor above.
         self.place_vehicles(vis=True)
         print('Complete.\n' 'Visualization results are saved in traffic_generator/output/vis/scene_initialized\n')
 
@@ -84,6 +94,8 @@ class TrafficGen:
         if not os.path.exists(tmp_pth):
             os.makedirs(tmp_pth)
 
+        # Deactivates any dropout layers / etc. that is not required during inference time
+        # REFERENCE: https://stackoverflow.com/a/66843176/9582712
         self.init_model.eval()
 
         data_path = self.cfg['data_path']
@@ -118,6 +130,7 @@ class TrafficGen:
                 else:
                     output["center_info"] = {}
 
+                # All output initialization data is saved in `traffic_generator/output/initialized_tmp`
                 p = os.path.join(tmp_pth, f'{idx}.pkl')
                 with open(p, 'wb') as f:
                     pickle.dump(output, f)
@@ -219,6 +232,7 @@ class TrafficGen:
         data['agent_mask'] = data['agent_mask'][:agent_num]
         data['all_agent'] = data['all_agent'][:agent_num]
 
+        # `length` is the same as time, we're going to save every `per_time` steps until `length`
         pred_agent = np.zeros([length, agent_num, 8])
         pred_agent[0, :, :7] = copy.deepcopy(data['all_agent'])
         pred_agent[1:, :, 5:7] = pred_agent[0, :, 5:7]
@@ -233,6 +247,7 @@ class TrafficGen:
         for i in range(0, length - 1, per_time):
 
             current_agent = copy.deepcopy(pred_agent[i])
+            # `case_list` stores agent information for all `agent_num` agents
             case_list = []
             for j in range(agent_num):
                 a_case = {}
@@ -245,6 +260,7 @@ class TrafficGen:
                 inp_list.append(process_case_to_input(case))
             batch = from_list_to_batch(inp_list)
 
+            # For each step in time, we're going to get the 
             pred = self.act_model(batch)
             prob = pred['prob']
             velo_pred = pred['velo']

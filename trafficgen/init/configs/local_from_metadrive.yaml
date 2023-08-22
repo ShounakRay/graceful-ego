@@ -1,3 +1,7 @@
+# @Author: Shounak Ray
+# @Date:   2023-08-14 15:07:03
+# @Last Modified by:   Shounak Ray
+# @Last Modified time: 2023-08-14 15:23:11
 # PZH: Compared to local.yaml, this config file introduces "from_metadrive: True" and change the data path to
 # "init/sample_data_from_metadrive".
 

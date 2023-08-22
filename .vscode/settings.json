@@ -1,0 +1,26 @@
+{
+    // # Set author
+    "fileheader.author": "Shounak Ray",
+
+    // # Set insert body switch, default false
+    "fileheader.body": true,
+
+    // # Set open file to insert header comment, default false
+    "fileheader.open": true,
+
+    // # Set save file to insert header comment, default true
+    "fileheader.save": true,
+
+    // # find max line of header comment, default 10
+    "fileheader.header_max_line": 10,
+
+    // # Set datetime format, default YYYY-MM-DD HH:mm:ss
+    // # moment.js
+    "fileheader.dateformat": "YYYY-MM-DD HH:mm:ss",
+
+    // # Set template mapping
+    "fileheader.file_suffix_mapping": {
+        ".pyx": "Python",
+        "jkc-*.h": "H"
+    },
+}
